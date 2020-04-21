@@ -11,8 +11,11 @@ library(infer)
 library(tidyverse)
 library(tidymodels)
 library(rpart.plot)
+library(gt)
 
 cces <- read_rds("cces_initial.rds")
+
+cces
 ```
 
 **Intro:** [Machine Learning](https://davidkane9.github.io/PPBDS/14-machine-learning.html). In today's class, we'll be applying your knowledge of regression models to the magical concept of machine learning. After this lesson, you'll have an introductory understanding of training, testing, validation, and classification.
@@ -36,8 +39,40 @@ cces <- read_rds("cces_initial.rds")
 
 1) Print out the model with the confidence interval and interpret the coefficient of `gender`? (Hint: use the divide-by-four rule.) Explain the association of Trump-voting with variables like `income` and `party` to your smart-but-not-mathematical boss. Why doesn't income matter?
 
+```{r}
+
+cces
+
+logistic_mod <- logistic_reg() %>%
+  set_engine("glm")
+
+logistic_fit <- fit(logistic_mod,
+                    trump ~ (gender + age + educ + race + income + party + ideology),
+                    data = cces)
+
+
+logistic_fit$fit %>%
+  tidy(conf.int = TRUE) %>%
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(estimate_divided = estimate / 4) %>% 
+  mutate(conf.low_divided = conf.low / 4) %>% 
+  mutate(conf.high_divided = conf.high / 4) %>% 
+  select(term, estimate_divided, conf.low_divided, conf.high_divided) %>% 
+  arrange(desc(estimate_divided)) %>% gt()
+
+cces %>% 
+  filter(race == "Native American") %>% 
+  summarize(prop = sum(trump == 1) / n())
+```
+
+
 2) What is the expected vote for Dom - who is Male, 37, holds a 4-year degree (placing him in the 5 `educ` bucket), Asian, makes $77,000, with `ideology` and `party` equal to 3. (Hint: use predict().)
 
+```{r}
+
+
+
+```
 
 
 # Scene 3
@@ -46,7 +81,39 @@ cces <- read_rds("cces_initial.rds")
 
 1) Interpret the output of the CART model (Hint: set extra = "auto" in `prp()`.) Where would Dom fall in this decision tree? 
 
+```{r}
+
+logistic_mod <- decision_tree() %>%
+  set_engine("rpart", model = TRUE) %>% 
+  set_mode("classification")
+
+logistic_fit <- fit(logistic_mod,
+                    factor(trump) ~ gender + age + educ + race + income + party + ideology,
+                    data = cces)
+
+logistic_fit$fit %>% 
+  prp(extra = "auto")
+
+```
+
+
 2) Looking at the randomForest model, what does the OOB error tell us? Interpret the first row, second column of the confusion matrix, what does that 920 represent? How does 920 relate to the class.error of 0.078?
+
+```{r}
+
+set.seed(1005)
+
+forest_mod <- rand_forest(mtry = 7, trees = 50) %>%
+  set_engine("randomForest") %>% 
+  set_mode("classification")
+
+forest_fit <- fit(forest_mod,
+                    trump ~ gender + age + educ + race + income + party + ideology,
+                    data = cces)
+
+forest_fit
+
+```
 
 
 
